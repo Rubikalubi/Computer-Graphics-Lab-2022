@@ -1,10 +1,11 @@
 from matplotlib.pyplot import polar
 from numpy import float32
 import taichi as ti
+import time
 
-ti.init(arch=ti.cuda)
+ti.init(arch=ti.cuda, kernel_profiler=True)
 
-N = 4
+N = 4000
 
 # index 0 is phi, index 1 is the radius
 polar_tensor = ti.Vector.field(2, dtype=ti.f32, shape=(N, N))
@@ -34,6 +35,7 @@ def calc_alphas():
         # calculation vars for zero division error
         phi_min_calc = 0.0
         phi_max_calc = 0.0
+        phi_calc = phi
 
         phi_min = ti.floor(phi / 22.5) * 22.5
         phi_max = phi_min + 22.5
@@ -43,18 +45,21 @@ def calc_alphas():
         if phi_min == 0.0:
             phi_min_calc = phi_min + 22.5
             phi_max_calc = phi_max + 22.5
+            phi_calc = phi + 22.5
         else:
             phi_min_calc = phi_min
             phi_max_calc = phi_max
 
-        alpha1 = (1 - alpha0) * (2 * (phi / phi_min_calc))
+        alpha1 = (1 - alpha0) * (2 - (phi_calc / phi_min_calc))
 
-        alpha2 = (1 - alpha0) * ((phi / phi_min_calc) - 1)
+        alpha2 = (1 - alpha0) * ((phi_calc / phi_min_calc) - 1)
 
-        print(phi, radius, alpha0, alpha1, alpha2)
+        # print(phi, radius, alpha0, alpha1, alpha2, alpha0 + alpha1 + alpha2)
 
         alpha_tensor[i] = ti.Vector([alpha0, alpha1, alpha2], dt=ti.float32)
 
 
 init_polar()
+start_time = ti.profiler.get_kernel_profiler_total_time()
 calc_alphas()
+print(ti.profiler.get_kernel_profiler_total_time() - start_time)
