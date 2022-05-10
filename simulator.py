@@ -6,15 +6,35 @@ ti.init(arch=ti.cuda)
 @ti.data_oriented
 class Mesh():
     def __init__(self) -> None:
-        pass
+        self.C = ti.Matrix.field(n=3, m=3, dtype=ti.f32, shape=())
+        self.stress_tensor = ti.Vector.field(3, dtype=ti.f32, shape=())
+        self.strain_tensor = self.C[None] @ self.stress_tensor[None]
+
+        self.x = ti.Vector.field(3, float, (N, N))
+        self.v = ti.Vector.field(3, float, (N, N))
+
+    def update_strain_tensor(self):
+        self.strain_tensor = self.C[None] @ self.stress_tensor[None]
+
+    def calculate_gravity_force(self):
+        for i in ti.grouped(x):
+            v[i].y -= gravity * dt
 
 
 N = 128
 cell_size = 1.0 / N
 gravity = 1.0
-stiffness = 800
-damping = 1
+stiffness = 1600
+damping = 3
 dt = 5e-4
+
+C = ti.Matrix.field(n=3, m=3, dtype=ti.f32, shape=())
+#print(C)
+
+stress_tensor = ti.Vector.field(3, dtype=ti.f32, shape=())
+
+#print(C[None] @ stress_tensor[None])
+
 
 ball_radius = 0.2
 ball_center = ti.Vector.field(3, float, (1,))
@@ -32,7 +52,12 @@ def init_scene():
         x[i, j] = ti.Vector([i * cell_size,
                              j * cell_size / ti.sqrt(2),
                              (N - j) * cell_size / ti.sqrt(2)])
-    ball_center[0] = ti.Vector([0.5, -0.5, -0.0])
+    ball_center[0] = ti.Vector([0.5, 0.0, -0.0])
+
+
+@ti.kernel
+def planar_stretching():
+    pass
 
 
 @ti.kernel
@@ -54,6 +79,7 @@ links = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]
 links = [ti.Vector(v) for v in links]
 
 
+# TODO add collision detection for the vertices in the mesh
 @ti.kernel
 def step():
     for i in ti.grouped(x):
@@ -77,6 +103,11 @@ def step():
         v[N-1, N-1] = ti.Vector([0.0, 0.0, 0.0])
         #v[ti.floor(N/2), N-1] = ti.Vector([0.0, 0.0, 0.0])
         x[i] += dt * v[i]
+
+
+@ti.kernel
+def self_collision():
+    pass
 
 
 @ti.kernel
